@@ -45,7 +45,32 @@ async def process_message(message):
 
     # Fire and forget model update
     loop.run_in_executor(executor, update_model, message)
+    
+    api_url = os.getenv("LLM_CHAT_API_URL", "http://127.0.0.1:1800/msg")  # yinmei-chatAPI
+    payload = {
+        "msg": message.content,  # mes
+        "uid": message.author.id,  # id
+        "username": message.author.name  # name
+    }
+    
+    try:
+        # Send the POST request to the LLM chat API
+        response = requests.post(api_url, json=payload)
+        response.raise_for_status()  # 检查请求是否成功
+        response_data = response.json()  # 解析返回的 JSON 数据
+        # Extract the response from the API
+        if response_data and "response" in response_data:
+            response_text = response_data["response"]
+            logger.info(f"Received response from LLM chat API: {response_text}")
+            return response_text
+        else:
+            logger.error("No valid response received from LLM chat API")
+            return "Error: No response from LLM chat API"
+    except requests.RequestException as e:
+        logger.error(f"Error sending request to LLM chat API: {e}")
+        return "Error: Failed to send message to LLM chat API"
 
+    
     # Get cached response
     cached_response = redis_client.get("latest_response")
     if cached_response:
